@@ -1,12 +1,13 @@
+# feedback.py
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, MessageHandler, filters, ConversationHandler
-from config import user_profiles, TEACHER_IDS, get_user_role
+from config import TEACHER_IDS, get_user_role, is_teacher
+from database import get_user
 
 # Состояния для обратной связи
 FEEDBACK = 1
 
 
-# feedback.py - исправление
 async def start_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Начало процесса обратной связи"""
     user_id = update.effective_user.id
@@ -17,9 +18,8 @@ async def start_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Эта функция только для студентов.")
         return ConversationHandler.END
 
-    # ИСПРАВЛЕННАЯ проверка профиля - используем БД
-    from database import get_user  # Добавьте импорт
-    student_profile = get_user(user_id)  # Используем БД вместо config
+    # Проверяем, заполнен ли профиль (используем БД)
+    student_profile = get_user(user_id)
 
     if not student_profile or not student_profile.get('fio'):
         await update.message.reply_text(
@@ -28,38 +28,16 @@ async def start_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
-
-async def handle_feedback_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает сообщение с обратной связью"""
-    user_id = update.effective_user.id
-    feedback_text = update.message.text
-
-    # Проверяем отмену
-    if feedback_text == "❌ Отменить отправку":
-        await update.message.reply_text(
-            "❌ Отправка отменена.",
-            reply_markup=ReplyKeyboardMarkup([["👤 Мой профиль", "В главное меню"]], resize_keyboard=True)
-        )
-        return ConversationHandler.END
-
-    # Получаем информацию о студенте ИЗ БАЗЫ
-    from database import get_user  # Добавьте импорт
-    student_profile = get_user(user_id)  # <-- ИСПРАВЛЕНО
-
-    if not student_profile:
-        await update.message.reply_text(
-            "❌ Профиль не найден. Заполните профиль.",
-            reply_markup=ReplyKeyboardMarkup([["👤 Мой профиль", "В главное меню"]], resize_keyboard=True)
-        )
-        return ConversationHandler.END
-
-    # Формируем сообщение для преподавателя
-    teacher_message = (
-        f"💌 *НОВОЕ СООБЩЕНИЕ ОТ СТУДЕНТА*\n\n"
-        f"*Студент:* {student_profile.get('fio', 'Неизвестно')}\n"
-        f"*Инструмент:* {', '.join(student_profile.get('instruments', []))}\n"
-        f"*Username:* @{update.message.from_user.username or 'Не указан'}\n\n"
-        f"*Пожелания к занятию:*\n{feedback_text}"
+    await update.message.reply_text(
+        "💬 *Напишите ваши пожелания к занятию:*\n\n"
+        "Опишите подробно:\n"
+        "• Какие произведения хотите разучить\n"
+        "• Какие техники отработать\n"
+        "• Особые пожелания по формату занятия\n"
+        "• Вопросы к преподавателю\n\n"
+        "Можете писать в одном сообщении - преподаватель получит его полностью.",
+        parse_mode='Markdown',
+        reply_markup=ReplyKeyboardMarkup([["❌ Отменить отправку"]], resize_keyboard=True)
     )
 
     return FEEDBACK
@@ -78,15 +56,27 @@ async def handle_feedback_message(update: Update, context: ContextTypes.DEFAULT_
         )
         return ConversationHandler.END
 
-    # Получаем информацию о студенте
-    student_profile = user_profiles[user_id]
+    # Получаем информацию о студенте из БД
+    student_profile = get_user(user_id)
+
+    if not student_profile:
+        await update.message.reply_text(
+            "❌ Профиль не найден. Заполните профиль.",
+            reply_markup=ReplyKeyboardMarkup([["👤 Мой профиль", "В главное меню"]], resize_keyboard=True)
+        )
+        return ConversationHandler.END
+
+    student_name = student_profile.get('fio', 'Неизвестно')
+    student_instruments = ', '.join(student_profile.get('instruments', []))
+    username = update.message.from_user.username or 'Не указан'
 
     # Формируем сообщение для преподавателя
     teacher_message = (
         f"💌 *НОВОЕ СООБЩЕНИЕ ОТ СТУДЕНТА*\n\n"
-        f"*Студент:* {student_profile['fio']}\n"
-        f"*Инструмент:* {', '.join(student_profile['instruments'])}\n"
-        f"*Username:* @{update.message.from_user.username or 'Не указан'}\n\n"
+        f"*Студент:* {student_name}\n"
+        f"*Инструмент:* {student_instruments}\n"
+        f"*Username:* @{username}\n"
+        f"*User ID:* {user_id}\n\n"
         f"*Пожелания к занятию:*\n{feedback_text}"
     )
 
@@ -144,5 +134,10 @@ feedback_conversation = ConversationHandler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_feedback_message)
         ],
     },
-    fallbacks=[MessageHandler(filters.Regex("^❌ Отменить отправку$"), cancel_feedback)]
+    fallbacks=[
+        MessageHandler(filters.Regex("^❌ Отменить отправку$"), cancel_feedback),
+        MessageHandler(filters.Regex("^В главное меню$"), cancel_feedback),
+        MessageHandler(filters.Regex("^/cancel$"), cancel_feedback)
+    ],
+    per_message=False
 )
