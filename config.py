@@ -136,7 +136,7 @@ def add_lessons_to_student(user_id, lessons_count):
 def use_lesson(user_id):
     """Использует один урок (если есть предоплаченные) ИЛИ добавляет долг"""
     balance = get_student_balance(user_id)
-    lesson_price = balance.get('lesson_price', 1800)
+    lesson_price = balance.get('lesson_price', 2000)
 
     if balance['lessons_left'] > 0:
         # Есть предоплаченные уроки - списываем один

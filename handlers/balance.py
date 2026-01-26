@@ -5,6 +5,7 @@ from config import is_teacher, get_student_balance, add_lessons_to_student, \
     add_deposit, set_student_notes, init_student_balance, set_student_price, \
     use_lesson, get_balance_display, get_total_lessons_count
 from database import get_all_users, get_confirmed_lessons, get_user
+from datetime import datetime
 import re
 import logging
 
@@ -118,7 +119,7 @@ async def show_student_menu(message_or_query, context, student_id: int):
         f"• Уроков осталось: {balance['lessons_left']} шт.\n"
         f"• Всего занятий: {total_lessons} шт.\n"
         f"• Баланс: {balance_display}\n"
-        f"• Цена урока: {balance.get('lesson_price', 1000)} руб.\n"
+        f"• Цена урока: {balance.get('lesson_price', 2000)} руб.\n"
         f"• Примечания: {balance.get('notes', 'Нет')}"
     )
 
@@ -304,7 +305,7 @@ async def charge_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     student_profile = get_user(student_id)
     student_name = student_profile.get('fio', 'Студент') if student_profile else 'Студент'
     balance_before = get_student_balance(student_id)
-    lesson_price = balance_before.get('lesson_price', 1000)
+    lesson_price = balance_before.get('lesson_price', 2000)
 
     # 1. Списываем урок
     if use_lesson(student_id):
@@ -403,7 +404,7 @@ async def show_student_statistics(update: Update, context: ContextTypes.DEFAULT_
     # Расчет статистики
     lessons_left = balance['lessons_left']
     total_lessons = get_total_lessons_count(student_id)
-    lesson_price = balance.get('lesson_price', 1000)
+    lesson_price = balance.get('lesson_price', 2000)
 
     # Финансовые расчеты
     total_lessons_value = total_lessons * lesson_price
@@ -467,7 +468,7 @@ async def show_my_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• Всего занятий: {total_lessons} шт.\n"
         f"*Финансы:*\n"
         f"• Баланс: {get_balance_display(user_id)}\n"
-        f"• Цена урока: {balance.get('lesson_price', 1000)} руб.\n\n"
+        f"• Цена урока: {balance.get('lesson_price', 2000)} руб.\n\n"
     )
 
     if balance.get('notes'):
@@ -495,6 +496,9 @@ async def show_my_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Сортируем по дате
             def get_lesson_date(lesson):
+                """Получает дату занятия для сортировки"""
+                from datetime import datetime  # Импорт внутри функции
+
                 try:
                     slot_name = lesson['slot_name']
                     parts = slot_name.split()
@@ -509,10 +513,8 @@ async def show_my_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             time_str = part
 
                     if date_str and time_str:
-                        from datetime import datetime
                         return datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
                 except:
-                    from datetime import datetime
                     return datetime.max
 
                 return datetime.max
@@ -555,7 +557,7 @@ async def notify_student_about_balance_change(context: ContextTypes.DEFAULT_TYPE
             f"• Финансовый баланс: {balance_display}\n"
             f"• Уроков осталось: {balance['lessons_left']} шт.\n"
             f"• Всего занятий: {total_lessons} шт.\n"
-            f"• Цена урока: {balance.get('lesson_price', 1000)} руб.\n\n"
+            f"• Цена урока: {balance.get('lesson_price', 2000)} руб.\n\n"
             f"Спасибо за оплату!"
         )
 
@@ -567,7 +569,7 @@ async def notify_student_about_balance_change(context: ContextTypes.DEFAULT_TYPE
             f"• Уроков осталось: {balance['lessons_left']} шт.\n"
             f"• Всего занятий: {total_lessons} шт.\n"
             f"• Финансовый баланс: {balance_display}\n"
-            f"• Цена урока: {balance.get('lesson_price', 1000)} руб.\n\n"
+            f"• Цена урока: {balance.get('lesson_price', 2000)} руб.\n\n"
             f"Приятных занятий!"
         )
 
@@ -579,7 +581,7 @@ async def notify_student_about_balance_change(context: ContextTypes.DEFAULT_TYPE
             f"• Уроков осталось: {balance['lessons_left']} шт.\n"
             f"• Всего занятий: {total_lessons} шт.\n"
             f"• Финансовый баланс: {balance_display}\n"
-            f"• Цена урока: {balance.get('lesson_price', 1000)} руб.\n\n"
+            f"• Цена урока: {balance.get('lesson_price', 2000)} руб.\n\n"
             f"Все изменения согласованы с вами."
         )
 
@@ -591,7 +593,7 @@ async def notify_student_about_balance_change(context: ContextTypes.DEFAULT_TYPE
             f"• Уроков осталось: {balance['lessons_left']} шт.\n"
             f"• Всего занятий: {total_lessons} шт.\n"
             f"• Финансовый баланс: {balance_display}\n"
-            f"• Цена урока: {balance.get('lesson_price', 1000)} руб.\n\n"
+            f"• Цена урока: {balance.get('lesson_price', 2000)} руб.\n\n"
             f"Если есть вопросы - обращайтесь!"
         )
 

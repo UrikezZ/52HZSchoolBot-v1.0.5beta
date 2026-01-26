@@ -498,7 +498,7 @@ async def confirm_all_selected_slots(update: Update, context: ContextTypes.DEFAU
     balance_before = get_student_balance(student_id)
     lessons_before = balance_before['lessons_left']
     money_before = balance_before['balance']
-    lesson_price = balance_before.get('lesson_price', 1000)
+    lesson_price = balance_before.get('lesson_price', 2000)
 
     # Подтверждаем ВСЕ выбранные слоты сначала
     confirmed_slots = []
@@ -652,7 +652,7 @@ async def confirm_single_slot_in_batch(context: ContextTypes.DEFAULT_TYPE,
             f"DEBUG: Balance after lesson: lessons_left={balance_after['lessons_left']}, balance={balance_after['balance']}")
 
         # Определяем тип списания
-        lesson_price = balance_before.get('lesson_price', 1000)
+        lesson_price = balance_before.get('lesson_price', 2000)
         if balance_before['lessons_left'] > 0:
             payment_type = "списан 1 урок из предоплаты"
         else:
@@ -733,7 +733,7 @@ async def confirm_single_slot(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"DEBUG: Balance after lesson: lessons_left={balance_after['lessons_left']}, balance={balance_after['balance']}")
 
         # Определяем тип списания
-        lesson_price = balance_before.get('lesson_price', 1000)
+        lesson_price = balance_before.get('lesson_price', 2000)
         if balance_before['lessons_left'] > 0:
             payment_type = "списан 1 урок из предоплаты"
         else:
