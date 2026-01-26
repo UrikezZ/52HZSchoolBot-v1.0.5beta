@@ -35,7 +35,7 @@ def init_database():
                 lessons_left INTEGER DEFAULT 0,
                 balance INTEGER DEFAULT 0,
                 notes TEXT DEFAULT '',
-                lesson_price INTEGER DEFAULT 1800,
+                lesson_price INTEGER DEFAULT 2000,
                 total_paid_lessons INTEGER DEFAULT 0,
                 total_completed_lessons INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -178,7 +178,7 @@ def save_student_balance(balance_data):
             balance_data.get('lessons_left', 0),
             balance_data.get('balance', 0),
             balance_data.get('notes', ''),
-            balance_data.get('lesson_price', 1800),
+            balance_data.get('lesson_price', 2000),
             balance_data.get('total_paid_lessons', 0),
             balance_data.get('total_completed_lessons', 0)
         ))
@@ -202,7 +202,7 @@ def get_student_balance(user_id):
                 'lessons_left': 0,
                 'balance': 0,
                 'notes': '',
-                'lesson_price': 1800,
+                'lesson_price': 2000,
                 'total_paid_lessons': 0,
                 'total_completed_lessons': 0
             }
