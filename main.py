@@ -7,14 +7,12 @@ from config import BOT_TOKEN, cleanup_weekly_requests
 from handlers.start import start, help_command, profile_command
 from handlers.main_handler import main_message_handler_obj
 from handlers.feedback import feedback_conversation
-from handlers.balance import balance_handlers
 from handlers.profile_conversation import create_profile_conversation, edit_profile_conversation
 from handlers.reminders import check_and_send_reminders
 from handlers.birthday_reminders import check_and_send_birthday_reminders
 from handlers.teacher import show_upcoming_birthdays
 from handlers.teacher_chat import teacher_chat_conversation
 from handlers.lesson_management import lesson_management_conversation
-from handlers.schedule import schedule_handlers
 from handlers.student_management import student_management_conversation
 import logging
 
@@ -69,15 +67,15 @@ def main():
     # 4. CallbackQueryHandler из balance.py
     from handlers.balance import (
         select_student, handle_action_choice, show_student_statistics,
-        charge_lesson, cancel_balance_management
+        charge_lesson, cancel_balance_management, handle_balance_input
     )
 
     application.add_handler(CallbackQueryHandler(select_student, pattern="^balance_select_"))
     application.add_handler(CallbackQueryHandler(handle_action_choice, pattern="^balance_"))
     application.add_handler(CallbackQueryHandler(show_student_statistics, pattern="^balance_statistics$"))
     application.add_handler(CallbackQueryHandler(charge_lesson, pattern="^balance_charge_lesson$"))
+    application.add_handler(CallbackQueryHandler(charge_lesson, pattern="^balance_confirm_lesson$"))
     application.add_handler(CallbackQueryHandler(cancel_balance_management, pattern="^balance_cancel$"))
-    application.add_handler(CallbackQueryHandler(handle_action_choice, pattern="^balance_back_to_list$"))
 
     # 5. CallbackQueryHandler из schedule.py
     try:
