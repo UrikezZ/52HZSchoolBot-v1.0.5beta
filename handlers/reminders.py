@@ -1,4 +1,4 @@
-# reminders.py - ОБНОВЛЕННАЯ версия
+# reminders.py - ИСПРАВЛЕННАЯ версия
 from telegram.ext import ContextTypes
 from datetime import datetime, timedelta
 import pytz
@@ -9,15 +9,15 @@ MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 
 async def check_and_send_reminders(context: ContextTypes.DEFAULT_TYPE):
-    """Проверяет и отправляет напоминания о занятиях"""
-    print(f"🔔 [{datetime.now()}] Проверка напоминаний...")
+    """Проверяет и отправляет напоминания о занятиях за 2 дня"""
+    print(f"🔔 [{datetime.now().strftime('%H:%M')}] Проверка напоминаний (за 2 дня)...")
 
     now_moscow = datetime.now(MOSCOW_TZ)
-    tomorrow_date = (now_moscow + timedelta(days=1)).date()
+    target_date = (now_moscow + timedelta(days=2)).date()  # ИЗМЕНЕНО: за 2 дня!
 
-    print(f"🔔 Завтрашняя дата: {tomorrow_date}")
+    print(f"🔔 Проверяем занятия на: {target_date.strftime('%d.%m.%Y')}")
 
-    all_lessons = get_confirmed_lessons()  # Из БД!
+    all_lessons = get_confirmed_lessons()
     print(f"🔔 Всего занятий в БД: {len(all_lessons)}")
 
     reminders_sent = 0
@@ -25,14 +25,17 @@ async def check_and_send_reminders(context: ContextTypes.DEFAULT_TYPE):
     for lesson in all_lessons:
         # Пропускаем если напоминание уже отправлено
         if lesson.get('reminder_sent', 0) == 1:
-            print(f"  Пропуск: напоминание уже отправлено для урока {lesson.get('id')}")
             continue
 
+        # Пропускаем ручные списания уроков (баланс)
         slot_name = lesson.get('slot_name', '')
+        if 'Ручное списание' in slot_name:
+            continue
+
         print(f"  Проверка урока: {slot_name}")
 
         try:
-            # Ищем дату и время в названии
+            # Ищем дату и время в названии (работает для обоих типов!)
             date_str = None
             time_str = None
 
@@ -45,29 +48,29 @@ async def check_and_send_reminders(context: ContextTypes.DEFAULT_TYPE):
             if date_str and time_str:
                 # Парсим дату занятия
                 lesson_datetime = datetime.strptime(f"{date_str} {time_str}", "%d.%m.%Y %H:%M")
-                lesson_datetime = MOSCOW_TZ.localize(lesson_datetime)
+                lesson_date = lesson_datetime.date()
 
-                print(f"    Дата урока: {lesson_datetime.date()}")
-                print(f"    Завтра: {tomorrow_date}")
+                print(f"Дата урока: {lesson_date}")
+                print(f"Целевая дата: {target_date}")
 
-                if lesson_datetime.date() == tomorrow_date:
-                    print(f"    ✅ Найдено занятие на завтра!")
+                # ПРОВЕРЯЕМ ЗА 2 ДНЯ ДО
+                if lesson_date == target_date:
+                    print(f"    ✅ Найдено занятие через 2 дня!")
 
                     # Отправляем напоминание
                     student_id = lesson['user_id']
 
-                    # Рассчитываем дату для отмены
-                    today = datetime.now(MOSCOW_TZ)
-                    cancellation_date = today.strftime("%d.%m")
+                    # Рассчитываем дату для отмены (за 1 день до)
+                    cancellation_date = lesson_datetime - timedelta(days=1)
 
                     reminder_text = (
                         f"🔔 *Напоминание о занятии!*\n\n"
-                        f"*Завтра у вас запланирован урок:*\n"
+                        f"*Через 2 дня у вас запланирован урок:*\n"
                         f"• {slot_name}\n\n"
                         f"*Адрес:*\n"
                         f"4-й Сыромятнический переулок, 3/5с3\n"
                         f"[Яндекс Карты](https://yandex.ru/maps/-/CLdYmDK3)\n\n"
-                        f"ℹ️ *Бесплатная отмена урока доступна НЕ позже 10:00 {cancellation_date}*\n\n"
+                        f"ℹ️ *Бесплатная отмена урока доступна НЕ позже 10:00 {cancellation_date.strftime('%d.%m')}*\n\n"
                         f"Пожалуйста, не опаздывайте и возьмите с собой все необходимое!"
                     )
 
@@ -82,10 +85,10 @@ async def check_and_send_reminders(context: ContextTypes.DEFAULT_TYPE):
                         # Отмечаем как отправленное
                         update_lesson_reminder_sent(lesson['id'])
                         reminders_sent += 1
-                        print(f"    ✅ Напоминание отправлено студенту {student_id}")
+                        print(f"✅ Напоминание отправлено студенту {student_id}")
 
                     except Exception as e:
-                        print(f"    ❌ Ошибка отправки студенту {student_id}: {e}")
+                        print(f"❌ Ошибка отправки студенту {student_id}: {e}")
 
         except Exception as e:
             print(f"    ❌ Ошибка парсинга даты '{slot_name}': {e}")
@@ -98,7 +101,7 @@ async def check_and_send_reminders(context: ContextTypes.DEFAULT_TYPE):
         try:
             await context.bot.send_message(
                 chat_id=TEACHER_IDS[0],
-                text=f"🔔 Отправлено {reminders_sent} напоминаний студентам о занятиях на завтра"
+                text=f"🔔 Отправлено {reminders_sent} напоминаний студентам о занятиях через 2 дня"
             )
         except Exception as e:
             print(f"❌ Ошибка уведомления преподавателя: {e}")
