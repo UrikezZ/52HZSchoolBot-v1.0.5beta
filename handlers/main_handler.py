@@ -1,9 +1,20 @@
-# main_handler.py
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 from config import get_user_role, is_teacher
 from database import get_user
 import re
+
+# Полный список кнопок меню (добавьте все кнопки из вашей системы)
+MENU_BUTTONS = [
+    "В главное меню", "❓ Помощь", "👨‍🏫 Мой профиль", "👤 Мой профиль",
+    "📊 Панель управления", "🎓 Мои студенты", "📋 Расписание",
+    "📅 Заявки студентов", "💰 Управление балансом",
+    "📅 Выбрать расписание", "🕐 Мои занятия", "💰 Мой баланс",
+    "👨‍🏫 Связаться с преподавателем", "✏️ Изменить профиль",
+    "👤 Создать профиль", "👨‍🏫 Заполнить профиль",
+    "✏️ Управление занятиями", "💬 Написать студенту",
+    "🗑 Удалить студента", "🎂 Дни рождения"
+]
 
 
 async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -11,37 +22,31 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     text = update.message.text.strip()
     user_role = get_user_role(user_id)
 
-    # 1. Проверяем, является ли это кнопкой меню
-    menu_buttons = [...]
+    print(f"DEBUG MAIN_HANDLER: Received text '{text}' from user {user_id}")
 
-    if text in menu_buttons:
+    # 1. Если это кнопка меню - обрабатываем
+    if text in MENU_BUTTONS:
+        print(f"DEBUG MAIN_HANDLER: This is a menu button '{text}'")
         await process_menu_button(update, context, text, user_role)
         return
 
-    # 2. Проверяем кнопку "Отмена" для баланса
-    if text == "❌ Отмена":
-        # Проверяем, есть ли активное действие по балансу
-        action = context.user_data.get('current_action')
-        if action and is_teacher(user_id):
-            from handlers.balance import handle_balance_input
-            await handle_balance_input(update, context)
-            return
-
-    # 3. Проверяем, является ли это вводом для баланса
+    # 2. Проверяем, является ли это вводом для баланса
     action = context.user_data.get('current_action')
     if action and is_teacher(user_id):
         from handlers.balance import handle_balance_input
         await handle_balance_input(update, context)
         return
 
-    # 4. Если ничего не подошло - игнорируем
-    print(f"DEBUG: Text '{text}' not processed")
+    # 3. Если это не кнопка меню и не ввод баланса - игнорируем
+    print(f"DEBUG MAIN_HANDLER: Text '{text}' not processed, ignoring...")
 
 
 async def process_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE,
                               text: str, user_role: str):
     """Обработка кнопок меню"""
     user_id = update.effective_user.id
+
+    print(f"DEBUG PROCESS_MENU: Processing button '{text}' for user {user_id}")
 
     if text == "В главное меню":
         from keyboards.main_menu import show_main_menu
@@ -73,6 +78,18 @@ async def process_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         elif text == "💰 Управление балансом":
             from handlers.balance import start_balance_management
             await start_balance_management(update, context)
+        elif text == "✏️ Управление занятиями":
+            from handlers.lesson_management import start_lesson_management
+            await start_lesson_management(update, context)
+        elif text == "💬 Написать студенту":
+            from handlers.teacher_chat import start_teacher_chat
+            await start_teacher_chat(update, context)
+        elif text == "🗑 Удалить студента":
+            from handlers.student_management import start_student_management
+            await start_student_management(update, context)
+        elif text == "🎂 Дни рождения":
+            from handlers.teacher import show_upcoming_birthdays
+            await show_upcoming_birthdays(update, context)
 
     else:  # student
         if text == "📅 Выбрать расписание":
@@ -87,79 +104,12 @@ async def process_menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE
         elif text == "👨‍🏫 Связаться с преподавателем":
             from handlers.feedback import start_feedback
             await start_feedback(update, context)
-
-
-async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
-    """Обработка ввода для баланса"""
-    from database import get_user
-    from handlers.balance import (
-        add_deposit, add_lessons_to_student,
-        set_student_price, set_student_notes, show_student_menu, get_balance_display,
-        notify_student_about_balance_change
-    )
-
-    user_id = update.effective_user.id
-    student_id = context.user_data.get('selected_student_id')
-    action = context.user_data.get('current_action')
-
-    if not student_id:
-        await update.message.reply_text("❌ Ошибка: студент не выбран.")
-        if 'current_action' in context.user_data:
-            del context.user_data['current_action']
-        return
-
-    student_profile = get_user(student_id)
-    student_name = student_profile.get('fio', 'Студент') if student_profile else 'Студент'
-
-    if action in ['add_deposit', 'add_lessons', 'set_price']:
-        if not re.match(r'^\d+$', text):
-            await update.message.reply_text("❌ Неверный формат! Введите только цифры.")
-            return
-
-        amount = int(text)
-        if amount <= 0:
-            await update.message.reply_text("❌ Значение должно быть положительным!")
-            return
-
-        if action == 'add_deposit':
-            balance = add_deposit(student_id, amount)
-            new_balance_display = get_balance_display(student_id)
-            message = f"✅ *{amount} руб. внесено студентом {student_name}*\n\n• Новый баланс: {new_balance_display}"
-
-            # Уведомляем студента
-            await notify_student_about_balance_change(context, student_id, "deposit_added", "", amount)
-
-        elif action == 'add_lessons':
-            balance = add_lessons_to_student(student_id, amount)
-            message = f"✅ *{amount} уроков добавлено студенту {student_name}*\n\n• Новый баланс: {balance['lessons_left']} уроков"
-
-            # Уведомляем студента
-            await notify_student_about_balance_change(context, student_id, "lessons_added", "", amount)
-
-        elif action == 'set_price':
-            balance = set_student_price(student_id, amount)
-            message = f"💲 *Цена урока установлена для {student_name}*\n\n• Новая цена: {balance.get('lesson_price', amount)} руб."
-
-            # Уведомляем студента
-            await notify_student_about_balance_change(context, student_id, "price_changed", "", amount)
-
-        await update.message.reply_text(message, parse_mode='Markdown')
-
-    elif action == 'add_notes':
-        balance = set_student_notes(student_id, text)
-        message = f"📝 *Примечание добавлено студенту {student_name}*\n\nПримечание: {text}"
-
-        # Уведомляем студента
-        await notify_student_about_balance_change(context, student_id, "notes_updated", text)
-
-        await update.message.reply_text(message, parse_mode='Markdown')
-
-    # Очищаем действие
-    if 'current_action' in context.user_data:
-        del context.user_data['current_action']
-
-    # Показываем меню студента заново
-    await show_student_menu(update.message, context, student_id)
+        elif text == "✏️ Изменить профиль":
+            from handlers.profile_conversation import start_edit_profile
+            await start_edit_profile(update, context)
+        elif text == "👤 Создать профиль" or text == "👨‍🏫 Заполнить профиль":
+            from handlers.profile_conversation import start_create_profile
+            await start_create_profile(update, context)
 
 
 # Создаем обработчик
