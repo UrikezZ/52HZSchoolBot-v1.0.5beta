@@ -1,5 +1,5 @@
 # balance.py
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from config import is_teacher, get_student_balance, add_lessons_to_student, \
     add_deposit, set_student_notes, init_student_balance, set_student_price, \
@@ -38,15 +38,23 @@ async def start_balance_management(update: Update, context: ContextTypes.DEFAULT
         total_lessons = get_total_lessons_count(student_id)
         balance_display = get_balance_display(student_id)
 
-        button_text = f"{profile['fio']} (уроков: {balance['lessons_left']}, занятий: {total_lessons})"
+        # Форматируем текст кнопки
+        lessons_display = f"{balance['lessons_left']}ур." if balance['lessons_left'] > 0 else "0ур."
+        lessons_count = f"{total_lessons}зан."
+
+        button_text = f"{profile['fio'][:15]}{'...' if len(profile['fio']) > 15 else ''} ({lessons_display}/{lessons_count})"
+
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f"balance_select_{student_id}")])
 
-    keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="balance_cancel")])
+    keyboard.append([
+        InlineKeyboardButton("❌ Отмена", callback_data="balance_cancel")
+    ])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        "🎓 *Выберите студента для управления балансом:*",
+        "🎓 *Выберите студента для управления балансом:*\n"
+        "Формат: Имя (уроков осталось/всего занятий)",
         parse_mode='Markdown',
         reply_markup=reply_markup
     )
@@ -137,6 +145,7 @@ async def show_student_menu(message_or_query, context, student_id: int):
             InlineKeyboardButton("📝 Примечание", callback_data="balance_add_notes"),
         ],
         [
+            InlineKeyboardButton("◀️ Назад к списку", callback_data="balance_back_to_list"),
             InlineKeyboardButton("✅ Завершить", callback_data="balance_finish"),
         ]
     ]
@@ -186,6 +195,20 @@ async def handle_action_choice(update: Update, context: ContextTypes.DEFAULT_TYP
                 del context.user_data[key]
         return
 
+    elif action == "back_to_list":
+        # Возвращаемся к списку студентов
+        await query.edit_message_text("◀️ Возвращаюсь к списку студентов...")
+
+        # Очищаем текущие данные
+        if 'selected_student_id' in context.user_data:
+            del context.user_data['selected_student_id']
+        if 'current_action' in context.user_data:
+            del context.user_data['current_action']
+
+        # Снова показываем список студентов
+        await start_balance_management(query, context)
+        return
+
     elif action == "statistics":
         await show_student_statistics(update, context)
         return
@@ -210,10 +233,9 @@ async def handle_action_choice(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.edit_message_text(messages[action], parse_mode='Markdown')
 
 
-async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик ввода данных для баланса (вызывается из main_handler)"""
+async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+    """Обработка ввода для баланса"""
     user_id = update.effective_user.id
-    text = update.message.text.strip()
 
     # Проверяем, есть ли текущее действие для баланса
     action = context.user_data.get('current_action')
@@ -234,15 +256,31 @@ async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYP
     student_profile = get_user(student_id)
     student_name = student_profile.get('fio', 'Студент') if student_profile else 'Студент'
 
+    # Проверяем отмену
+    if text.lower() in ["отмена", "cancel", "назад", "back"]:
+        await update.message.reply_text(
+            "❌ Операция отменена.",
+            reply_markup=ReplyKeyboardMarkup([["📊 Панель управления", "В главное меню"]], resize_keyboard=True)
+        )
+        if 'current_action' in context.user_data:
+            del context.user_data['current_action']
+        # Возвращаемся в меню студента
+        await show_student_menu(update.message, context, student_id)
+        return
+
     # Обработка числовых действий
     if action in ['add_deposit', 'add_lessons', 'set_price']:
         if not re.match(r'^\d+$', text):
-            await update.message.reply_text("❌ Неверный формат! Введите только цифры.")
+            await update.message.reply_text(
+                "❌ Неверный формат! Введите только цифры.\nИли напишите 'отмена' для возврата."
+            )
             return
 
         amount = int(text)
         if amount <= 0:
-            await update.message.reply_text("❌ Значение должно быть положительным!")
+            await update.message.reply_text(
+                "❌ Значение должно быть положительным!\nИли напишите 'отмена' для возврата."
+            )
             return
 
         # Выполняем действие
@@ -427,8 +465,10 @@ async def show_student_statistics(update: Update, context: ContextTypes.DEFAULT_
     if balance.get('notes'):
         statistics_text += f"*Примечания:*\n{balance['notes']}\n\n"
 
-    # Кнопка возврата
-    keyboard = [[InlineKeyboardButton("◀️ Назад к управлению", callback_data=f"balance_select_{student_id}")]]
+    # Кнопки возврата
+    keyboard = [
+        [InlineKeyboardButton("◀️ Назад к управлению", callback_data=f"balance_select_{student_id}")]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await query.edit_message_text(

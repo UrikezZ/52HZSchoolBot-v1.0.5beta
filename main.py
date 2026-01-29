@@ -77,6 +77,7 @@ def main():
     application.add_handler(CallbackQueryHandler(show_student_statistics, pattern="^balance_statistics$"))
     application.add_handler(CallbackQueryHandler(charge_lesson, pattern="^balance_charge_lesson$"))
     application.add_handler(CallbackQueryHandler(cancel_balance_management, pattern="^balance_cancel$"))
+    application.add_handler(CallbackQueryHandler(handle_action_choice, pattern="^balance_back_to_list$"))
 
     # 5. CallbackQueryHandler из schedule.py
     try:

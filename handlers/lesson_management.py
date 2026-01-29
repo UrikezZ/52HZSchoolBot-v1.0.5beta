@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, MessageHandler, filters, ConversationHandler, CommandHandler
 from config import is_teacher, get_student_balance, get_balance_display
 from database import get_user, get_confirmed_lessons, save_confirmed_lesson, delete_confirmed_lesson_by_slot, \
     get_all_users
@@ -36,8 +36,54 @@ def prevent_double_click(func):
             print(f"Error in {func.__name__}: {e}")
 
     return wrapper
+def check_and_reset_conversation(user_id, context):
+    """Проверяет и сбрасывает активный ConversationHandler для пользователя"""
+    # Ключи состояния для lesson_management
+    lesson_keys = [
+        'lesson_mgmt_student_id',
+        'future_lessons',
+        'selected_month',
+        'selected_year',
+        'selected_day',
+        'selected_time',
+        'full_slot_name'
+    ]
+
+    # Очищаем данные
+    for key in lesson_keys:
+        if key in context.user_data:
+            del context.user_data[key]
+
+    return True
 
 
+async def force_cancel_lesson_management(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Принудительная отмена управления занятиями"""
+    user_id = update.effective_user.id
+
+    # Очищаем все данные
+    lesson_keys = [
+        'lesson_mgmt_student_id',
+        'future_lessons',
+        'selected_month',
+        'selected_year',
+        'selected_day',
+        'selected_time',
+        'full_slot_name',
+        '_conversation_state'
+    ]
+
+    for key in lesson_keys:
+        if key in context.user_data:
+            del context.user_data[key]
+
+    await update.message.reply_text(
+        "🔄 Состояние управления занятиями сброшено.\n"
+        "Теперь вы можете начать заново.",
+        reply_markup=ReplyKeyboardMarkup([["📊 Панель управления", "В главное меню"]], resize_keyboard=True)
+    )
+
+    return ConversationHandler.END
 @prevent_double_click
 async def start_lesson_management(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Начало управления занятиями"""
@@ -46,6 +92,9 @@ async def start_lesson_management(update: Update, context: ContextTypes.DEFAULT_
     if not is_teacher(user_id):
         await update.message.reply_text("❌ Доступ запрещен. Эта функция только для преподавателей.")
         return ConversationHandler.END
+
+    # СБРАСЫВАЕМ состояние перед началом
+    check_and_reset_conversation(user_id, context)
 
     # Получаем список студентов из БД
     students_data = get_all_users(role='student')
@@ -75,6 +124,14 @@ async def start_lesson_management(update: Update, context: ContextTypes.DEFAULT_
     keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="lesson_mgmt_cancel")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # ОЧИЩАЕМ предыдущее состояние ConversationHandler
+    # Это важно: нужно завершить старый ConversationHandler
+    current_state = context.user_data.get('_conversation_state')
+    if current_state:
+        # Завершаем текущий ConversationHandler
+        context.user_data.pop('_conversation_state', None)
+        await update.message.reply_text("🔄 Сбрасываю предыдущее состояние...")
 
     await update.message.reply_text(
         "🎹 *Управление занятиями*\n\n"
@@ -799,7 +856,10 @@ async def cancel_lesson_management(update: Update, context: ContextTypes.DEFAULT
 
 # Создаем ConversationHandler для управления занятиями
 lesson_management_conversation = ConversationHandler(
-    entry_points=[MessageHandler(filters.Regex("^✏️ Управление занятиями$"), start_lesson_management)],
+    entry_points=[
+        MessageHandler(filters.Regex("^✏️ Управление занятиями$"), start_lesson_management),
+        CommandHandler("cancel_lessons", force_cancel_lesson_management)  # Добавьте эту строку
+    ],
     states={
         LESSON_MANAGEMENT_SELECT_STUDENT: [
             CallbackQueryHandler(select_student_for_management, pattern="^lesson_mgmt_")
@@ -824,9 +884,11 @@ lesson_management_conversation = ConversationHandler(
         ],
     },
     fallbacks=[
+        CommandHandler("cancel", force_cancel_lesson_management),  # /cancel
         MessageHandler(filters.Regex("^❌ Отмена$"), cancel_lesson_management),
         MessageHandler(filters.Regex("^В главное меню$"), cancel_lesson_management),
         CallbackQueryHandler(lambda update, context: update.callback_query.answer(), pattern="^ignore$")
     ],
-    per_message=False
+    per_message=False,
+    allow_reentry=True  # ВАЖНО: разрешаем повторный вход
 )
