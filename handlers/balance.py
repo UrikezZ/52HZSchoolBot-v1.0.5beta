@@ -1,5 +1,5 @@
 # balance.py
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ContextTypes, CallbackQueryHandler
 from config import is_teacher, get_student_balance, add_lessons_to_student, \
     add_deposit, set_student_notes, init_student_balance, set_student_price, \
@@ -247,16 +247,16 @@ async def handle_action_choice(update: Update, context: ContextTypes.DEFAULT_TYP
 
     # Для остальных действий
     messages = {
-        "add_deposit": "💰 *Внести депозит*\n\nВведите сумму депозита в рублях (только цифры):\n\n*Или напишите 'отмена' для возврата*",
-        "add_lessons": "➕ *Добавление уроков*\n\nВведите количество уроков для добавления (только цифры):\n\n*Или напишите 'отмена' для возврата*",
-        "add_notes": "📝 *Добавление примечания*\n\nВведите примечание для студента:\n\n*Или напишите 'отмена' для возврата*",
-        "set_price": "💲 *Установка цены урока*\n\nВведите новую цену урока в рублях (только цифры):\n\n*Или напишите 'отмена' для возврата*",
-        "charge_lesson": "🎹 *Списание урока*\n\nСписать 1 проведенный урок у студента?\n\n*Нажмите 'Списать' или 'Отмена'*"
+        "add_deposit": "💰 *Внести депозит*\n\nВведите сумму депозита в рублях:",
+        "add_lessons": "➕ *Добавление уроков*\n\nВведите количество уроков для добавления:",
+        "add_notes": "📝 *Добавление примечания*\n\nВведите примечание для студента:",
+        "set_price": "💲 *Установка цены урока*\n\nВведите новую цену урока в рублях:",
+        "charge_lesson": "🎹 *Списание урока*\n\nСписать 1 проведенный урок у студента?"
     }
 
     if action in messages:
         if action == "charge_lesson":
-            # Для списания урока показываем кнопки подтверждения
+            # Для списания урока показываем inline кнопки
             keyboard = [
                 [
                     InlineKeyboardButton("✅ Списать", callback_data="balance_confirm_lesson"),
@@ -274,7 +274,21 @@ async def handle_action_choice(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             # Сохраняем выбранное действие
             context.user_data['current_action'] = action
-            await query.edit_message_text(messages[action], parse_mode='Markdown')
+
+            # Создаем клавиатуру с кнопкой "Отмена"
+            reply_keyboard = [["❌ Отмена"]]
+            reply_markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+            # Отправляем новое сообщение (не редактируем старое)
+            await context.bot.send_message(
+                chat_id=query.from_user.id,
+                text=messages[action],
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+
+            # Можно удалить старое сообщение или оставить
+            await query.delete_message()
 
 
 async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -301,11 +315,13 @@ async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYP
     student_profile = get_user(student_id)
     student_name = student_profile.get('fio', 'Студент') if student_profile else 'Студент'
 
-    # Проверяем отмену
-    if text.lower() in ["отмена", "cancel", "назад", "back"]:
+    # Проверяем нажатие кнопки "Отмена"
+    if text == "❌ Отмена":
+        # Удаляем ReplyKeyboardMarkup
         await update.message.reply_text(
             "❌ Операция отменена.",
-            parse_mode='Markdown'
+            parse_mode='Markdown',
+            reply_markup=ReplyKeyboardRemove()
         )
         if 'current_action' in context.user_data:
             del context.user_data['current_action']
@@ -317,14 +333,16 @@ async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYP
     if action in ['add_deposit', 'add_lessons', 'set_price']:
         if not re.match(r'^\d+$', text):
             await update.message.reply_text(
-                "❌ Неверный формат! Введите только цифры.\nИли напишите 'отмена' для возврата."
+                "❌ Неверный формат! Введите только цифры.",
+                reply_markup=ReplyKeyboardMarkup([["❌ Отмена"]], resize_keyboard=True)
             )
             return
 
         amount = int(text)
         if amount <= 0:
             await update.message.reply_text(
-                "❌ Значение должно быть положительным!\nИли напишите 'отмена' для возврата."
+                "❌ Значение должно быть положительным!",
+                reply_markup=ReplyKeyboardMarkup([["❌ Отмена"]], resize_keyboard=True)
             )
             return
 
@@ -351,7 +369,11 @@ async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYP
             # Уведомляем студента
             await notify_student_about_balance_change(context, student_id, "price_changed", "", amount)
 
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(
+            message,
+            parse_mode='Markdown',
+            reply_markup=ReplyKeyboardRemove()  # Убираем клавиатуру
+        )
 
     # Обработка примечания
     elif action == 'add_notes':
@@ -361,15 +383,18 @@ async def handle_balance_input(update: Update, context: ContextTypes.DEFAULT_TYP
         # Уведомляем студента
         await notify_student_about_balance_change(context, student_id, "notes_updated", text)
 
-        await update.message.reply_text(message, parse_mode='Markdown')
+        await update.message.reply_text(
+            message,
+            parse_mode='Markdown',
+            reply_markup=ReplyKeyboardRemove()  # Убираем клавиатуру
+        )
 
     # Очищаем действие
     if 'current_action' in context.user_data:
         del context.user_data['current_action']
 
-    # Показываем меню студента заново
+    # Показываем меню студента заново (с inline кнопками)
     await show_student_menu(update.message, context, student_id)
-
 
 async def charge_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Списание одного урока у студента с добавлением записи"""

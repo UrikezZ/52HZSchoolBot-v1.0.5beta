@@ -7,36 +7,34 @@ import re
 
 
 async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """ГЛАВНЫЙ обработчик ВСЕХ текстовых сообщений"""
     user_id = update.effective_user.id
     text = update.message.text.strip()
     user_role = get_user_role(user_id)
 
-    print(f"DEBUG MAIN HANDLER: Text='{text}', user_id={user_id}, role={user_role}")
-
     # 1. Проверяем, является ли это кнопкой меню
-    menu_buttons = [
-        "В главное меню", "❓ Помощь", "👨‍🏫 Мой профиль", "👤 Мой профиль",
-        "📊 Панель управления", "🎓 Мои студенты", "📋 Расписание",
-        "📅 Заявки студентов", "💰 Управление балансом",
-        "📅 Выбрать расписание", "🕐 Мои занятия", "💰 Мой баланс",
-        "👨‍🏫 Связаться с преподавателем", "✏️ Изменить профиль",
-        "👤 Создать профиль", "👨‍🏫 Заполнить профиль"
-    ]
+    menu_buttons = [...]
 
     if text in menu_buttons:
-        print(f"DEBUG: Processing as menu button: {text}")
         await process_menu_button(update, context, text, user_role)
         return
 
-    # 2. Проверяем, является ли это вводом для баланса
+    # 2. Проверяем кнопку "Отмена" для баланса
+    if text == "❌ Отмена":
+        # Проверяем, есть ли активное действие по балансу
+        action = context.user_data.get('current_action')
+        if action and is_teacher(user_id):
+            from handlers.balance import handle_balance_input
+            await handle_balance_input(update, context)
+            return
+
+    # 3. Проверяем, является ли это вводом для баланса
     action = context.user_data.get('current_action')
     if action and is_teacher(user_id):
-        print(f"DEBUG: Processing as balance input: {text}, action={action}")
-        await handle_balance_input(update, context, text)
+        from handlers.balance import handle_balance_input
+        await handle_balance_input(update, context)
         return
 
-    # 3. Если ничего не подошло - игнорируем
+    # 4. Если ничего не подошло - игнорируем
     print(f"DEBUG: Text '{text}' not processed")
 
 
