@@ -12,7 +12,7 @@ async def send_reminder_to_student(context: ContextTypes.DEFAULT_TYPE, student_i
             f"• {lesson['slot_name']}\n\n"
             f"*Адрес:*\n"
             f"4-й Сыромятнический переулок, 3/5с3\n"
-            f"[Яндекс Карты](https://yandex.ru/maps/-/CLdYmDK3)\n\n"
+            f"[Яндекс Карты](https://yandex.ru/maps/-/CPAfq2lq)\n\n"
             f"Пожалуйста, не опаздывайте и возьмите с собой все необходимое!"
         )
 

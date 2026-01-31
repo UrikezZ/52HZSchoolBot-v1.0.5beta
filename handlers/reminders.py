@@ -69,7 +69,7 @@ async def check_and_send_reminders(context: ContextTypes.DEFAULT_TYPE):
                         f"• {slot_name}\n\n"
                         f"*Адрес:*\n"
                         f"4-й Сыромятнический переулок, 3/5с3\n"
-                        f"[Яндекс Карты](https://yandex.ru/maps/-/CLdYmDK3)\n\n"
+                        f"[Яндекс Карты](https://yandex.ru/maps/-/CPAfq2lq)\n\n"
                         f"ℹ️ *Бесплатная отмена урока доступна НЕ позже 10:00 {cancellation_date.strftime('%d.%m')}*\n\n"
                         f"Пожалуйста, не опаздывайте и возьмите с собой все необходимое!"
                     )

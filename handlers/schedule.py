@@ -592,7 +592,7 @@ async def confirm_all_selected_slots(update: Update, context: ContextTypes.DEFAU
         f"\n*Всего подтверждено: {len(confirmed_slots)} занятий*\n\n"
         f"*Адрес:*\n"
         f"4-й Сыромятнический переулок, 3/5с3\n"
-        f"[Яндекс Карты](https://yandex.ru/maps/-/CLdYmDK3)\n\n"
+        f"[Яндекс Карты](https://yandex.ru/maps/-/CPAfq2lq)\n\n"
         f"ℹ️ *Бесплатная отмена урока доступна не позже 10:00 предыдущего дня*\n\n"
     )
 
@@ -819,7 +819,7 @@ async def confirm_single_slot(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"{slot_name}\n\n"
             f"*Адрес:*\n"
             f"4-й Сыромятнический переулок, 3/5с3\n"
-            f"[Яндекс Карты](https://yandex.ru/maps/-/CLdYmDK3)\n\n"
+            f"[Яндекс Карты](https://yandex.ru/maps/-/CPAfq2lq)\n\n"
             f"*Оплата:* {payment_type}\n\n"
             f"ℹ️ *Бесплатная отмена урока доступна НЕ позже 10:00 {cancellation_date}*\n\n"
             f"Уроков осталось: {balance['lessons_left']} шт.\n"
@@ -915,7 +915,7 @@ async def send_reminder_to_student(context, student_id, lesson):
             f"• {lesson['slot_name']}\n\n"
             f"*Адрес:*\n"
             f"4-й Сыромятнический переулок, 3/5с3\n"
-            f"[Яндекс Карты](https://yandex.ru/maps/-/CLdYmDK3)\n\n"
+            f"[Яндекс Карты](https://yandex.ru/maps/-/CPAfq2lq)\n\n"
             f"Пожалуйста, не опаздывайте и возьмите с собой все необходимое!"
         )
 

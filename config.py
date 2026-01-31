@@ -19,7 +19,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 # ID администратора/преподавателя
-TEACHER_IDS = [6395169224]
+TEACHER_IDS = [1230120534]
 
 
 # ========== ОСНОВНЫЕ ФУНКЦИИ ==========

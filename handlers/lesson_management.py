@@ -782,7 +782,7 @@ async def confirm_add_lesson(update: Update, context: ContextTypes.DEFAULT_TYPE)
             f"{full_slot_name}\n\n"
             f"*Адрес:*\n"
             f"4-й Сыромятнический переулок, 3/5с3\n"
-            f"[Яндекс Карты](https://yandex.ru/maps/-/CLdYmDK3)\n\n"
+            f"[Яндекс Карты](https://yandex.ru/maps/-/CPAfq2lq)\n\n"
             f"*Примечание:* Оплата будет обсуждена отдельно с преподавателем.\n\n"
             f"ℹ️ *Бесплатная отмена урока доступна НЕ позже 10:00 {cancellation_date}*\n\n"
             f"По всем вопросам обращайтесь к преподавателю."
