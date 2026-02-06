@@ -16,7 +16,10 @@ EDIT_MAIN, EDIT_FIO, EDIT_BIRTHDATE, EDIT_INSTRUMENTS, EDIT_GOALS = range(5, 10)
 VALID_INSTRUMENTS = {
     "🎹 Фортепиано": ["Фортепиано"],
     "🎤 Вокал": ["Вокал"],
-    "🎹 Фортепиано + 🎤 Вокал": ["Фортепиано", "Вокал"]
+    "🎧 Аранжировка": ["Аранжировка"],
+    "🎹 Фортепиано + 🎤 Вокал": ["Фортепиано", "Вокал"],
+    "🎹 Фортепиано + 🎧 Аранжировка": ["Фортепиано", "Аранжировка"],
+    "🎤 Вокал + 🎧 Аранжировка": ["Вокал", "Аранжировка"]
 }
 
 
@@ -191,17 +194,19 @@ async def handle_create_birthdate(update: Update, context: ContextTypes.DEFAULT_
     if user_role == "teacher":
         keyboard = [
             ["🎹 Фортепиано", "🎤 Вокал"],
-            ["🎹 Фортепиано + 🎤 Вокал"]
+            ["🎧 Аранжировка", "🎹 Фортепиано + 🎤 Вокал"],  # ← добавили
+            ["🎹 Фортепиано + 🎧 Аранжировка", "🎤 Вокал + 🎧 Аранжировка"]  # ← добавили
         ]
         step_text = "👨‍🏫 *Шаг 3 из 4: Специализация*"
         prompt = "Выберите вашу специализацию:"
     else:
         keyboard = [
             ["🎹 Фортепиано", "🎤 Вокал"],
-            ["🎹 Фортепиано + 🎤 Вокал"]
+            ["🎧 Аранжировка", "🎹 Фортепиано + 🎤 Вокал"],  # ← добавили
+            ["🎹 Фортепиано + 🎧 Аранжировка", "🎤 Вокал + 🎧 Аранжировка"]  # ← добавили
         ]
         step_text = "👤 *Шаг 3 из 4: Инструменты*"
-        prompt = "Выберите инструмент для обучения:"
+        prompt = "Выберите инструмент/направление для обучения:"
 
     await update.message.reply_text(
         f"{step_text}\n{prompt}",
@@ -217,18 +222,54 @@ async def handle_create_instruments(update: Update, context: ContextTypes.DEFAUL
     user_id = update.effective_user.id
     text = update.message.text.strip()
 
-    if text not in VALID_INSTRUMENTS:
+    # Обновленный список валидных вариантов с аранжировкой
+    valid_options = [
+        "🎹 Фортепиано", "🎤 Вокал", "🎧 Аранжировка",
+        "🎹 Фортепиано + 🎤 Вокал",
+        "🎹 Фортепиано + 🎧 Аранжировка",
+        "🎤 Вокал + 🎧 Аранжировка"
+    ]
+
+    if text not in valid_options:
+        user_role = get_user_role(user_id)
+        if user_role == "teacher":
+            keyboard = [
+                ["🎹 Фортепиано", "🎤 Вокал"],
+                ["🎧 Аранжировка", "🎹 Фортепиано + 🎤 Вокал"],
+                ["🎹 Фортепиано + 🎧 Аранжировка", "🎤 Вокал + 🎧 Аранжировка"]
+            ]
+        else:
+            keyboard = [
+                ["🎹 Фортепиано", "🎤 Вокал"],
+                ["🎧 Аранжировка", "🎹 Фортепиано + 🎤 Вокал"],
+                ["🎹 Фортепиано + 🎧 Аранжировка", "🎤 Вокал + 🎧 Аранжировка"]
+            ]
+
         await update.message.reply_text(
             "❌ Пожалуйста, выберите один из предложенных вариантов:",
-            reply_markup=ReplyKeyboardMarkup([
-                ["🎹 Фортепиано", "🎤 Вокал"],
-                ["🎹 Фортепиано + 🎤 Вокал"]
-            ], resize_keyboard=True)
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         )
         return CREATE_INSTRUMENTS
 
+    # Сохраняем выбранные инструменты
+    # Сначала определим, что выбрал пользователь
+    if text == "🎹 Фортепиано":
+        instruments = ["Фортепиано"]
+    elif text == "🎤 Вокал":
+        instruments = ["Вокал"]
+    elif text == "🎧 Аранжировка":
+        instruments = ["Аранжировка"]
+    elif text == "🎹 Фортепиано + 🎤 Вокал":
+        instruments = ["Фортепиано", "Вокал"]
+    elif text == "🎹 Фортепиано + 🎧 Аранжировка":
+        instruments = ["Фортепиано", "Аранжировка"]
+    elif text == "🎤 Вокал + 🎧 Аранжировка":
+        instruments = ["Вокал", "Аранжировка"]
+    else:
+        instruments = []
+
     profile = get_user_profile(user_id)
-    profile['instruments'] = VALID_INSTRUMENTS[text]
+    profile['instruments'] = instruments
     save_user_profile(user_id, profile)
 
     user_role = get_user_role(user_id)
@@ -500,17 +541,27 @@ async def handle_edit_instruments(update: Update, context: ContextTypes.DEFAULT_
     user_id = update.effective_user.id
     text = update.message.text.strip()
 
-    if text not in VALID_INSTRUMENTS:
+    # Обновленный список валидных вариантов с аранжировкой
+    valid_options = [
+        "🎹 Фортепиано", "🎤 Вокал", "🎧 Аранжировка",
+        "🎹 Фортепиано + 🎤 Вокал",
+        "🎹 Фортепиано + 🎧 Аранжировка",
+        "🎤 Вокал + 🎧 Аранжировка"
+    ]
+
+    if text not in valid_options:
         user_role = get_user_role(user_id)
         if user_role == "teacher":
             keyboard = [
                 ["🎹 Фортепиано", "🎤 Вокал"],
-                ["🎹 Фортепиано + 🎤 Вокал"]
+                ["🎧 Аранжировка", "🎹 Фортепиано + 🎤 Вокал"],
+                ["🎹 Фортепиано + 🎧 Аранжировка", "🎤 Вокал + 🎧 Аранжировка"]
             ]
         else:
             keyboard = [
                 ["🎹 Фортепиано", "🎤 Вокал"],
-                ["🎹 Фортепиано + 🎤 Вокал"]
+                ["🎧 Аранжировка", "🎹 Фортепиано + 🎤 Вокал"],
+                ["🎹 Фортепиано + 🎧 Аранжировка", "🎤 Вокал + 🎧 Аранжировка"]
             ]
 
         await update.message.reply_text(
@@ -519,11 +570,27 @@ async def handle_edit_instruments(update: Update, context: ContextTypes.DEFAULT_
         )
         return EDIT_INSTRUMENTS
 
+    # Определяем выбранные инструменты
+    if text == "🎹 Фортепиано":
+        instruments = ["Фортепиано"]
+    elif text == "🎤 Вокал":
+        instruments = ["Вокал"]
+    elif text == "🎧 Аранжировка":
+        instruments = ["Аранжировка"]
+    elif text == "🎹 Фортепиано + 🎤 Вокал":
+        instruments = ["Фортепиано", "Вокал"]
+    elif text == "🎹 Фортепиано + 🎧 Аранжировка":
+        instruments = ["Фортепиано", "Аранжировка"]
+    elif text == "🎤 Вокал + 🎧 Аранжировка":
+        instruments = ["Вокал", "Аранжировка"]
+    else:
+        instruments = []
+
     profile = get_user_profile(user_id)
-    profile['instruments'] = VALID_INSTRUMENTS[text]
+    profile['instruments'] = instruments
     save_user_profile(user_id, profile)
 
-    # Убираем отдельное сообщение
+    # Убираем отдельное сообщение и сразу показываем меню с сообщением об успехе
     await send_edit_menu_with_success(context.bot, user_id, "✅ Инструменты обновлены!")
     return EDIT_MAIN
 
